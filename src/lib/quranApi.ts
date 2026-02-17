@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://api.alquran.cloud/v1";
+const API_BASE_URL = "https://api.alquran.cloud/v1";
 
 export interface Surah {
     number: number;
