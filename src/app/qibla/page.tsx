@@ -66,51 +66,74 @@ export default function QiblaPage() {
 
     useEffect(() => {
         // 2. Setup Device Orientation
-        const handleOrientation = (event: DeviceOrientationEvent) => {
+        const handleOrientation = (event: DeviceOrientationEvent | any) => {
             if (isManualMode) return;
 
             let compass = event.alpha;
 
             // iOS specific property
-            if ((event as any).webkitCompassHeading) {
-                compass = (event as any).webkitCompassHeading;
+            if (event.webkitCompassHeading) {
+                compass = event.webkitCompassHeading;
+            }
+
+            // Android absolute orientation
+            if (event.absolute && event.alpha !== null) {
+                // Convert alpha (counter-clockwise 0-360) to heading (clockwise 0-360)
+                // In deviceorientationabsolute, alpha=0 is North.
+                // Rotation is usually counter-clockwise.
+                // So heading = 360 - alpha.
+                compass = 360 - event.alpha;
             }
 
             if (compass !== null && compass !== undefined) {
-                let finalHeading = compass;
-                if (!(event as any).webkitCompassHeading) {
-                    finalHeading = 360 - compass;
-                }
-                setHeading(finalHeading);
+                // Normalize to 0-360
+                const headingVal = (compass + 360) % 360;
+                setHeading(headingVal);
             }
         };
 
-        if (typeof (DeviceOrientationEvent as any).requestPermission === "function") {
-            setStatus("Tap to enable compass.");
-        } else if (window.DeviceOrientationEvent) {
-            window.addEventListener("deviceorientation", handleOrientation, true);
-            setPermissionGranted(true);
-            // Check if we are actually getting data
-            setTimeout(() => {
-                setHeading(prev => {
-                    if (prev === 0) {
-                        // Still 0? Probably no sensor or desktop.
-                        setStatus("Compass not detected. Rotate manually.");
-                        setIsManualMode(true);
-                    } else {
-                        setStatus("Compass active.");
-                    }
-                    return prev;
-                });
-            }, 2000);
-        } else {
-            // No support
-            setStatus("Compass unsupported. Rotate manually.");
-            setIsManualMode(true);
-        }
+        const initCompass = async () => {
+            if (typeof (DeviceOrientationEvent as any).requestPermission === "function") {
+                // iOS 13+ requires permission
+                setStatus("Tap to enable compass.");
+            } else {
+                // Android / Standard
+                // Try absolute first
+                if ('ondeviceorientationabsolute' in (window as any)) {
+                    (window as any).addEventListener("deviceorientationabsolute", handleOrientation, true);
+                } else {
+                    window.addEventListener("deviceorientation", handleOrientation, true);
+                }
+                setPermissionGranted(true);
+
+                // Check if we are actually receiving data
+                setTimeout(() => {
+                    setHeading(prev => {
+                        if (prev === 0) {
+                            // Try fallback to standard event if absolute failed or didn't fire
+                            if ('ondeviceorientationabsolute' in (window as any)) {
+                                (window as any).removeEventListener("deviceorientationabsolute", handleOrientation, true);
+                                window.addEventListener("deviceorientation", handleOrientation, true);
+                            } else {
+                                setStatus("Compass not detected. Rotate manually.");
+                                setIsManualMode(true);
+                            }
+                        } else {
+                            setStatus("Compass active.");
+                        }
+                        return prev;
+                    });
+                }, 1000);
+            }
+        };
+
+        initCompass();
 
         return () => {
-            window.removeEventListener("deviceorientation", handleOrientation);
+            if ('ondeviceorientationabsolute' in (window as any)) {
+                (window as any).removeEventListener("deviceorientationabsolute", handleOrientation, true);
+            }
+            window.removeEventListener("deviceorientation", handleOrientation, true);
         };
     }, [isManualMode]);
 
@@ -121,16 +144,10 @@ export default function QiblaPage() {
                 if (permission === "granted") {
                     setPermissionGranted(true);
                     setIsManualMode(false);
-                    // Re-add listener
-                    // ... implementation similar to effect ...
-                    window.addEventListener("deviceorientation", (event: DeviceOrientationEvent) => {
-                        let compass = event.alpha;
-                        if ((event as any).webkitCompassHeading) { compass = (event as any).webkitCompassHeading; }
-                        if (compass !== null) {
-                            let finalHeading = compass;
-                            if (!(event as any).webkitCompassHeading) finalHeading = 360 - compass;
-                            setHeading(finalHeading);
-                        }
+                    // iOS listener
+                    window.addEventListener("deviceorientation", (event: any) => {
+                        let compass = event.webkitCompassHeading || event.alpha;
+                        if (compass) setHeading(compass);
                     }, true);
                     setStatus("Compass active.");
                 } else {
