@@ -230,14 +230,14 @@ export default function MuslimProDashboard() {
 
             {/* Features Menu - Overlapping & Premium */}
             <div className="px-6 -mt-8 relative z-20 mb-6">
-                <div className="bg-white dark:bg-slate-900 rounded-[24px] p-4 shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-white/5 mx-auto">
+                <div className="bg-white rounded-[24px] p-4 shadow-xl shadow-slate-200/50 border border-slate-100 mx-auto">
                     <div className="flex justify-between items-center px-2">
                         {features.map((feature, i) => (
                             <Link key={i} href={feature.href} className="flex flex-col items-center gap-2 group cursor-pointer">
-                                <div className="h-12 w-12 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center group-hover:bg-violet-100 dark:group-hover:bg-violet-900/40 transition-colors">
-                                    <feature.icon className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+                                <div className="h-12 w-12 rounded-2xl bg-violet-50 flex items-center justify-center group-hover:bg-violet-100 transition-colors">
+                                    <feature.icon className="w-5 h-5 text-violet-600" />
                                 </div>
-                                <span className="text-[10px] font-medium text-slate-600 dark:text-slate-400 group-hover:text-violet-600 dark:group-hover:text-violet-300 transition-colors">{feature.name}</span>
+                                <span className="text-[10px] font-medium text-slate-600 group-hover:text-violet-600 transition-colors">{feature.name}</span>
                             </Link>
                         ))}
                     </div>
@@ -250,25 +250,25 @@ export default function MuslimProDashboard() {
                 {/* Worship Tracker Entry Point */}
                 <Sheet>
                     <SheetTrigger asChild>
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm flex items-center gap-4 cursor-pointer active:scale-95 transition-transform group border border-transparent dark:border-slate-800">
-                            <div className="h-10 w-10 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 dark:text-violet-400 group-hover:scale-110 transition-transform shrink-0">
+                        <div className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-4 cursor-pointer active:scale-95 transition-transform group border border-transparent">
+                            <div className="h-10 w-10 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 group-hover:scale-110 transition-transform shrink-0">
                                 <CheckCircle2 className="w-5 h-5" />
                             </div>
                             <div className="flex-1">
                                 <div className="flex justify-between items-center mb-1.5">
-                                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Daily Tracker</h3>
-                                    <span className="text-[10px] font-bold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 px-2 py-0.5 rounded-full">
+                                    <h3 className="text-sm font-bold text-slate-800">Daily Tracker</h3>
+                                    <span className="text-[10px] font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">
                                         {worshipProgress}%
                                     </span>
                                 </div>
-                                <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                                     <div
-                                        className="h-full bg-violet-600 dark:bg-violet-400 rounded-full transition-all duration-500 ease-out"
+                                        className="h-full bg-violet-600 rounded-full transition-all duration-500 ease-out"
                                         style={{ width: `${worshipProgress}%` }}
                                     ></div>
                                 </div>
                             </div>
-                            <Button size="sm" variant="ghost" className="text-violet-600 dark:text-violet-400 font-bold text-xs hover:bg-violet-50 dark:hover:bg-violet-900/20 shrink-0">
+                            <Button size="sm" variant="ghost" className="text-violet-600 font-bold text-xs hover:bg-violet-50 shrink-0">
                                 Open
                             </Button>
                         </div>
@@ -289,19 +289,19 @@ export default function MuslimProDashboard() {
                 {/* Quran Progress (Floating Pill Style) */}
                 {mounted && (
                     <Link href={bookmark ? `/quran/${bookmark.surahId}#ayah-${bookmark.ayahNumber}` : "/quran/1"} className="block">
-                        <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50 dark:from-violet-950/30 dark:to-fuchsia-950/30 border border-violet-100 dark:border-violet-500/20 rounded-3xl p-4 shadow-sm flex items-center gap-4 relative overflow-hidden group cursor-pointer hover:shadow-md transition-all">
-                            <div className="h-12 w-12 rounded-full bg-white dark:bg-white/10 flex items-center justify-center shrink-0 shadow-sm border border-violet-100 dark:border-white/5">
-                                <BookOpen className="w-5 h-5 text-violet-600 dark:text-violet-300" />
+                        <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50 border border-violet-100 rounded-3xl p-4 shadow-sm flex items-center gap-4 relative overflow-hidden group cursor-pointer hover:shadow-md transition-all">
+                            <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-violet-100">
+                                <BookOpen className="w-5 h-5 text-violet-600" />
                             </div>
                             <div className="flex-1">
-                                <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm">
+                                <h3 className="font-bold text-slate-800 text-sm">
                                     {bookmark ? "Continue Reading" : "Start Reading"}
                                 </h3>
-                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                <p className="text-xs text-slate-500">
                                     {bookmark ? `${bookmark.surahName}, Ayah ${bookmark.ayahNumber}` : "Al-Fatiha, The Opening"}
                                 </p>
                             </div>
-                            <ChevronRight className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors" />
+                            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-violet-600 transition-colors" />
                         </div>
                     </Link>
                 )}
@@ -311,8 +311,8 @@ export default function MuslimProDashboard() {
 
                 {/* Daily Moments (Large Card) */}
                 <div>
-                    <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-3 px-1 text-sm">Daily Inspiration</h3>
-                    <div className="bg-gradient-to-br from-fuchsia-500 to-violet-600 dark:from-fuchsia-900 dark:to-violet-900 rounded-3xl p-5 text-white shadow-lg relative overflow-hidden transition-all">
+                    <h3 className="font-bold text-slate-800 mb-3 px-1 text-sm">Daily Inspiration</h3>
+                    <div className="bg-gradient-to-br from-fuchsia-500 to-violet-600 rounded-3xl p-5 text-white shadow-lg relative overflow-hidden transition-all">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
 
                         <div className="relative z-10">
