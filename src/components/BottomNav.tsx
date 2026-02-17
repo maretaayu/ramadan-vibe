@@ -14,26 +14,23 @@ export default function BottomNav() {
     ];
 
     return (
-        <div className="fixed bottom-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
-            <nav className="bg-white/90 backdrop-blur-xl border border-white/20 shadow-2xl shadow-slate-200/50 rounded-full px-6 py-3 pointer-events-auto flex items-center gap-8 md:hidden">
+        <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center md:hidden pointer-events-none">
+            <nav className="w-full bg-white/95 backdrop-blur-xl border-t border-slate-200/50 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.1)] px-6 py-3 pb-5 pointer-events-auto flex items-center justify-around">
                 {navItems.map((item) => {
                     const isActive = pathname === item.href;
                     return (
                         <Link
                             key={item.label}
                             href={item.href}
-                            className={`relative flex flex-col items-center justify-center w-10 h-10 transition-all duration-300 group`}
+                            className={`flex flex-col items-center justify-center gap-1 min-w-[64px] transition-colors duration-300 group ${isActive ? "text-violet-600" : "text-slate-400 hover:text-violet-500"}`}
                         >
-                            <span className={`absolute -top-8 bg-slate-800 text-white text-[10px] py-1 px-2 rounded-md opacity-0 transition-opacity duration-300 ${isActive ? "" : "group-hover:opacity-100"}`}>
-                                {item.label}
-                            </span>
-
-                            <div className={`absolute inset-0 bg-violet-100 rounded-full scale-0 transition-transform duration-300 ${isActive ? "scale-100" : "group-hover:scale-75"}`}></div>
-
                             <item.icon
-                                className={`w-5 h-5 z-10 transition-colors duration-300 ${isActive ? "text-violet-600 fill-violet-600/20" : "text-slate-400 group-hover:text-violet-500"}`}
+                                className={`w-6 h-6 transition-all duration-300 ${isActive ? "scale-110 fill-violet-600/20" : "group-hover:scale-105"}`}
                                 strokeWidth={isActive ? 2.5 : 2}
                             />
+                            <span className={`text-[10px] font-semibold transition-all duration-300 ${isActive ? "scale-100" : "scale-95 opacity-80"}`}>
+                                {item.label}
+                            </span>
                         </Link>
                     );
                 })}
