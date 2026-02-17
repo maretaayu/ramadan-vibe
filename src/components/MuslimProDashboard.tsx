@@ -1,29 +1,56 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { getPrayerTimes } from "@/lib/api";
 import { PrayerData } from "@/types";
-import { Loader2, MapPin, Bell, Cloud, Moon, Sun, Sunset, BookOpen, Crown, MoreHorizontal, MessageSquare, ChevronRight, Share2, Copy } from "lucide-react";
+import { Loader2, MapPin, Bell, Cloud, Moon, Sun, Sunset, BookOpen, Crown, MoreHorizontal, MessageSquare, ChevronRight, Share2, Copy, Compass } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "./ui/button";
 import WorshipTracker from "./WorshipTracker";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { CheckCircle2 } from "lucide-react";
-import Link from "next/link";
 import { useLastRead } from "@/hooks/useLastRead";
-import { ModeToggle } from "@/components/mode-toggle";
 
 export default function MuslimProDashboard() {
     const { bookmark, mounted } = useLastRead();
     const [prayerData, setPrayerData] = useState<PrayerData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [city, setCity] = useState("Jakarta");
+    const [city, setCity] = useState("Yogyakarta");
     const [country, setCountry] = useState("Indonesia");
-    const [coords, setCoords] = useState<{ lat: number; long: number } | null>(null);
+    const [coords, setCoords] = useState<{ lat: number; long: number } | null>({ lat: -7.7956, long: 110.3695 });
 
     const [nextPrayer, setNextPrayer] = useState<{ name: string; time: string } | null>(null);
     const [timeRemaining, setTimeRemaining] = useState<string>("");
+    const [worshipProgress, setWorshipProgress] = useState(0);
+    const [worshipHistory, setWorshipHistory] = useState<Record<string, number>>({});
 
+    useEffect(() => {
+        const calculateProgress = () => {
+            // Calculate Today's Progress
+            const savedTasks = localStorage.getItem("worshipTasks");
+            if (savedTasks) {
+                const tasks = JSON.parse(savedTasks);
+                if (Array.isArray(tasks) && tasks.length > 0) {
+                    const completed = tasks.filter((t: any) => t.completed).length;
+                    setWorshipProgress(Math.round((completed / tasks.length) * 100));
+                }
+            }
+
+            // Load History
+            const history = localStorage.getItem("worshipHistory");
+            if (history) {
+                setWorshipHistory(JSON.parse(history));
+            }
+        };
+
+        calculateProgress();
+        // Poll for changes in case Sheet updates localStorage
+        const interval = setInterval(calculateProgress, 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    /*
     useEffect(() => {
         if ("geolocation" in navigator) {
             navigator.geolocation.getCurrentPosition(
@@ -38,6 +65,7 @@ export default function MuslimProDashboard() {
             );
         }
     }, []);
+    */
 
     useEffect(() => {
         async function fetchData() {
@@ -45,6 +73,7 @@ export default function MuslimProDashboard() {
             const data = await getPrayerTimes(city, country, coords?.lat, coords?.long);
             setPrayerData(data);
 
+            /*
             // Reverse Geocode to get the real city name
             if (coords) {
                 try {
@@ -62,6 +91,7 @@ export default function MuslimProDashboard() {
                     setCity("My Location");
                 }
             }
+            */
 
             setLoading(false);
         }
@@ -123,15 +153,15 @@ export default function MuslimProDashboard() {
     if (!prayerData) return <div>Failed to load</div>;
 
     const features = [
-        { name: "Quran", icon: BookOpen },
-        { name: "Dua", icon: MessageSquare },
-        { name: "Tasbih", icon: MoreHorizontal },
-        { name: "Salah", icon: Sun },
-        { name: "Hadith", icon: BookOpen },
+        { name: "Quran", icon: BookOpen, href: "/quran" },
+        { name: "Dua", icon: MessageSquare, href: "/dua" },
+        { name: "Tasbih", icon: MoreHorizontal, href: "/tasbih" },
+        { name: "Qibla", icon: Compass, href: "/qibla" },
+        { name: "Hadith", icon: BookOpen, href: "/hadith" },
     ];
 
     return (
-        <div className="w-full min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-50 pb-24 transition-colors duration-300">
+        <div className="w-full min-h-screen bg-slate-50 text-slate-800 pb-24">
 
             {/* Organic Fluid Hero Section */}
             <div className="relative bg-gradient-to-br from-[#4c1d95] via-[#6d28d9] to-[#8b5cf6] text-white rounded-b-[40px] shadow-xl overflow-hidden pt-12 pb-8 px-6 mb-6">
@@ -159,9 +189,6 @@ export default function MuslimProDashboard() {
                             <MapPin className="w-3.5 h-3.5 text-amber-300" />
                             <span className="text-[11px] font-medium text-white">{city}</span>
                         </div>
-
-                        {/* Theme Toggle - Matches Location Pill Style */}
-                        <ModeToggle className="h-9 w-9 rounded-full bg-white/10 border border-white/10 text-white hover:bg-white/20 hover:text-white" />
                     </div>
                 </div>
 
@@ -201,30 +228,78 @@ export default function MuslimProDashboard() {
                 </div>
             </div>
 
+            {/* Features Menu - Overlapping & Premium */}
+            <div className="px-6 -mt-8 relative z-20 mb-6">
+                <div className="bg-white dark:bg-slate-900 rounded-[24px] p-4 shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-white/5 mx-auto">
+                    <div className="flex justify-between items-center px-2">
+                        {features.map((feature, i) => (
+                            <Link key={i} href={feature.href} className="flex flex-col items-center gap-2 group cursor-pointer">
+                                <div className="h-12 w-12 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center group-hover:bg-violet-100 dark:group-hover:bg-violet-900/40 transition-colors">
+                                    <feature.icon className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+                                </div>
+                                <span className="text-[10px] font-medium text-slate-600 dark:text-slate-400 group-hover:text-violet-600 dark:group-hover:text-violet-300 transition-colors">{feature.name}</span>
+                            </Link>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
             {/* Content Body */}
             <div className="px-5 space-y-6">
+
+                {/* Worship Tracker Entry Point */}
+                <Sheet>
+                    <SheetTrigger asChild>
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm flex items-center gap-4 cursor-pointer active:scale-95 transition-transform group border border-transparent dark:border-slate-800">
+                            <div className="h-10 w-10 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 dark:text-violet-400 group-hover:scale-110 transition-transform shrink-0">
+                                <CheckCircle2 className="w-5 h-5" />
+                            </div>
+                            <div className="flex-1">
+                                <div className="flex justify-between items-center mb-1.5">
+                                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Daily Tracker</h3>
+                                    <span className="text-[10px] font-bold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 px-2 py-0.5 rounded-full">
+                                        {worshipProgress}%
+                                    </span>
+                                </div>
+                                <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-violet-600 dark:bg-violet-400 rounded-full transition-all duration-500 ease-out"
+                                        style={{ width: `${worshipProgress}%` }}
+                                    ></div>
+                                </div>
+                            </div>
+                            <Button size="sm" variant="ghost" className="text-violet-600 dark:text-violet-400 font-bold text-xs hover:bg-violet-50 dark:hover:bg-violet-900/20 shrink-0">
+                                Open
+                            </Button>
+                        </div>
+                    </SheetTrigger>
+                    <SheetContent side="bottom" className="rounded-t-[30px] h-[80vh] p-0 bg-background border-t border-border">
+                        <div className="p-6 pb-0">
+                            <SheetHeader className="mb-4 text-left">
+                                <SheetTitle className="text-xl font-bold text-foreground">Daily Worship & Activity</SheetTitle>
+                            </SheetHeader>
+                        </div>
+                        <div className="overflow-y-auto h-full pb-20 px-0">
+                            <WorshipTracker />
+                        </div>
+                    </SheetContent>
+                </Sheet>
 
                 {/* Quran Progress (Floating Pill Style) */}
                 {/* Quran Progress (Floating Pill Style) */}
                 {mounted && (
                     <Link href={bookmark ? `/quran/${bookmark.surahId}#ayah-${bookmark.ayahNumber}` : "/quran/1"} className="block">
-                        <div className="bg-white dark:bg-slate-900/50 border border-transparent dark:border-white/5 rounded-3xl p-4 shadow-sm flex items-center gap-4 relative overflow-hidden group cursor-pointer hover:shadow-md transition-all">
-                            <div className="h-12 w-12 rounded-full bg-violet-50 dark:bg-violet-500/10 flex items-center justify-center shrikh-0">
+                        <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50 dark:from-violet-950/30 dark:to-fuchsia-950/30 border border-violet-100 dark:border-violet-500/20 rounded-3xl p-4 shadow-sm flex items-center gap-4 relative overflow-hidden group cursor-pointer hover:shadow-md transition-all">
+                            <div className="h-12 w-12 rounded-full bg-white dark:bg-white/10 flex items-center justify-center shrink-0 shadow-sm border border-violet-100 dark:border-white/5">
                                 <BookOpen className="w-5 h-5 text-violet-600 dark:text-violet-300" />
                             </div>
                             <div className="flex-1">
-                                <div className="flex justify-between items-center mb-1">
-                                    <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm">
-                                        {bookmark ? "Continue Reading" : "Start Reading"}
-                                    </h3>
-                                    {bookmark && <span className="text-[10px] font-bold text-violet-600 dark:text-violet-300 bg-violet-50 dark:bg-violet-500/10 px-2 py-0.5 rounded-full">10%</span>}
-                                </div>
-                                <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                                <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm">
+                                    {bookmark ? "Continue Reading" : "Start Reading"}
+                                </h3>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">
                                     {bookmark ? `${bookmark.surahName}, Ayah ${bookmark.ayahNumber}` : "Al-Fatiha, The Opening"}
                                 </p>
-                                <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                    <div className={`h-full bg-violet-600 dark:bg-violet-400 rounded-full group-hover:w-[15%] transition-all duration-500 ${bookmark ? "w-[10%]" : "w-0"}`}></div>
-                                </div>
                             </div>
                             <ChevronRight className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors" />
                         </div>
@@ -232,19 +307,7 @@ export default function MuslimProDashboard() {
                 )}
 
                 {/* Features Grid (Soft & Clean) */}
-                <div>
-                    <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-3 px-1 text-sm">Explore</h3>
-                    <div className="grid grid-cols-4 gap-4">
-                        {features.slice(0, 4).map((feature, i) => (
-                            <div key={i} className="flex flex-col items-center gap-2 group cursor-pointer">
-                                <div className="h-14 w-14 rounded-[20px] bg-white dark:bg-slate-900/50 border border-slate-50 dark:border-white/5 flex items-center justify-center shadow-sm group-hover:scale-105 group-hover:shadow-md transition-all duration-300">
-                                    <feature.icon className="w-6 h-6 text-violet-600 dark:text-violet-300 stroke-[1.5]" />
-                                </div>
-                                <span className="text-[10px] font-medium text-slate-600 dark:text-slate-400">{feature.name}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+
 
                 {/* Daily Moments (Large Card) */}
                 <div>
@@ -274,37 +337,60 @@ export default function MuslimProDashboard() {
                         </div>
                     </div>
                 </div>
+
+                {/* Ramadan Consistency Heatmap (GitHub Style) */}
+                <div className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-sm font-bold text-slate-800">Ramadan Consistency</h3>
+                        <span className="text-[10px] text-slate-400">Last 30 Days</span>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                        <div className="flex flex-wrap gap-2 justify-center">
+                            {Array.from({ length: 30 }).map((_, i) => {
+                                // Calculate date for this square (30 days ago to today)
+                                const date = new Date();
+                                date.setDate(date.getDate() - (29 - i));
+                                const dateKey = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+
+                                // Get value from history, or use live state for today
+                                const isToday = i === 29;
+                                const value = isToday ? worshipProgress : (worshipHistory[dateKey] || 0);
+
+                                let colorClass = "bg-slate-100";
+                                if (value > 0) colorClass = "bg-violet-200";
+                                if (value >= 40) colorClass = "bg-violet-400";
+                                if (value >= 70) colorClass = "bg-violet-600";
+                                if (value === 100) colorClass = "bg-violet-800";
+
+                                return (
+                                    <div
+                                        key={i}
+                                        className={`w-5 h-5 rounded-md ${colorClass} transition-all hover:scale-110 cursor-pointer relative group`}
+                                    >
+                                        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10 transition-opacity">
+                                            {date.toLocaleDateString("id-ID", { day: 'numeric', month: 'short' })}: {value}%
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="flex items-center justify-end gap-1.5 text-[9px] text-slate-400 mt-2">
+                            <span>Less</span>
+                            <div className="w-2.5 h-2.5 rounded-sm bg-slate-100"></div>
+                            <div className="w-2.5 h-2.5 rounded-sm bg-violet-200"></div>
+                            <div className="w-2.5 h-2.5 rounded-sm bg-violet-400"></div>
+                            <div className="w-2.5 h-2.5 rounded-sm bg-violet-600"></div>
+                            <div className="w-2.5 h-2.5 rounded-sm bg-violet-800"></div>
+                            <span>More</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Worship Tracker Entry Point */}
-            <Sheet>
-                <SheetTrigger asChild>
-                    <div className="mx-6 mt-4 bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm flex items-center justify-between cursor-pointer active:scale-95 transition-transform group border border-transparent dark:border-slate-800">
-                        <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 dark:text-violet-400 group-hover:scale-110 transition-transform">
-                                <CheckCircle2 className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Daily Tracker</h3>
-                                <p className="text-[10px] text-slate-500 dark:text-slate-400">Track your worship</p>
-                            </div>
-                        </div>
-                        <Button size="sm" variant="ghost" className="text-violet-600 dark:text-violet-400 font-bold text-xs hover:bg-violet-50 dark:hover:bg-violet-900/20">
-                            Open
-                        </Button>
-                    </div>
-                </SheetTrigger>
-                <SheetContent side="bottom" className="rounded-t-[30px] h-[80vh] p-0 bg-background border-t border-border">
-                    <div className="p-6 pb-0">
-                        <SheetHeader className="mb-4 text-left">
-                            <SheetTitle className="text-xl font-bold text-foreground">Daily Worship & Activity</SheetTitle>
-                        </SheetHeader>
-                    </div>
-                    <div className="overflow-y-auto h-full pb-20 px-0">
-                        <WorshipTracker />
-                    </div>
-                </SheetContent>
-            </Sheet>
+
         </div>
     );
 }

@@ -4,10 +4,12 @@ const ALADHAN_API_BASE_URL = "https://api.aladhan.com/v1";
 
 export async function getPrayerTimes(city: string, country: string, lat?: number, long?: number): Promise<PrayerData | null> {
     try {
-        let url = `${ALADHAN_API_BASE_URL}/timingsByCity?city=${city}&country=${country}&method=2`;
+        const timestamp = Math.floor(Date.now() / 1000);
+        // Method 20 is Kemenag (Ministry of Religious Affairs of Indonesia)
+        let url = `${ALADHAN_API_BASE_URL}/timingsByCity/${timestamp}?city=${city}&country=${country}&method=20`;
 
         if (lat && long) {
-            url = `${ALADHAN_API_BASE_URL}/timings?latitude=${lat}&longitude=${long}&method=2`;
+            url = `${ALADHAN_API_BASE_URL}/timings/${timestamp}?latitude=${lat}&longitude=${long}&method=20`;
         }
 
         const response = await fetch(url, { next: { revalidate: 3600 } });

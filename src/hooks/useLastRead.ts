@@ -6,6 +6,7 @@ export interface Bookmark {
     surahId: number;
     ayahNumber: number;
     surahName: string;
+    totalAyahs?: number;
 }
 
 export function useLastRead() {

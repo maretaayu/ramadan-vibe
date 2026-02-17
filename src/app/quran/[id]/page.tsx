@@ -19,7 +19,7 @@ export default function SurahDetail() {
 
     const [surah, setSurah] = useState<{ arabic: SurahDetails; translation: SurahDetails } | null>(null);
     const [loading, setLoading] = useState(true);
-    const [bookmark, setBookmark] = useState<{ surahId: number; ayahNumber: number; surahName: string } | null>(null);
+    const [bookmark, setBookmark] = useState<{ surahId: number; ayahNumber: number; surahName: string; totalAyahs?: number } | null>(null);
     const [memorized, setMemorized] = useState<number[]>([]);
     const [isMemorizationMode, setIsMemorizationMode] = useState(false);
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -120,7 +120,12 @@ export default function SurahDetail() {
 
     const toggleBookmark = (ayahNumber: number) => {
         if (!surah) return;
-        const newBookmark = { surahId: id, ayahNumber, surahName: surah.arabic.englishName };
+        const newBookmark = {
+            surahId: id,
+            ayahNumber,
+            surahName: surah.arabic.englishName,
+            totalAyahs: surah.arabic.numberOfAyahs
+        };
         setBookmark(newBookmark);
         localStorage.setItem("quranBookmark", JSON.stringify(newBookmark));
     };
