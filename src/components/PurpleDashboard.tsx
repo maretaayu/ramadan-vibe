@@ -105,8 +105,12 @@ export default function PurpleDashboard() {
         }
     }, []);
 
-    const handleFastingToggle = (checked: boolean) => {
-        const todayKey = new Date().toISOString().split('T')[0];
+    const handleFastingToggle = (checked: boolean, date?: string) => {
+        // Use local date for default
+        const now = new Date();
+        const localTodayKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+        const todayKey = date || localTodayKey;
+
         let newHistory = [...fastingHistory];
 
         if (checked) {
@@ -118,9 +122,13 @@ export default function PurpleDashboard() {
         }
 
         setFastingHistory(newHistory);
-        setIsFasting(checked);
+        const actualToday = new Date().toISOString().split('T')[0];
+        if (todayKey === actualToday) {
+            setIsFasting(checked);
+            localStorage.setItem("fastingStatus", String(checked));
+        }
+
         localStorage.setItem("fastingHistory", JSON.stringify(newHistory));
-        localStorage.setItem("fastingStatus", String(checked)); // Sync with legacy storage just in case
 
         // Recalculate Streak immediately
         let streak = 0;
@@ -265,8 +273,8 @@ export default function PurpleDashboard() {
                             <div
                                 onClick={() => handleFastingToggle(!isFasting)}
                                 className={`flex items-center gap-1.5 h-9 px-3 rounded-full backdrop-blur-md border transition-all cursor-pointer active:scale-95 group ${isFasting
-                                        ? "bg-gradient-to-r from-orange-500 to-amber-500 border-orange-400 text-white shadow-lg shadow-orange-900/20"
-                                        : "bg-white/10 border-white/10 text-violet-200 hover:bg-white/20 hover:border-white/20"
+                                    ? "bg-gradient-to-r from-orange-500 to-amber-500 border-orange-400 text-white shadow-lg shadow-orange-900/20"
+                                    : "bg-white/10 border-white/10 text-violet-200 hover:bg-white/20 hover:border-white/20"
                                     }`}
                             >
                                 <span className={`text-[12px] transition-transform group-hover:scale-110 ${isFasting ? "animate-pulse" : "grayscale opacity-70"}`}>🔥</span>
@@ -334,7 +342,7 @@ export default function PurpleDashboard() {
                 </div>
 
                 <WorshipTracker
-                    externalFastingStatus={isFasting}
+                    fastingHistory={fastingHistory}
                     onFastingChange={handleFastingToggle}
                 />
             </div>
