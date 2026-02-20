@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { auth, googleProvider } from "@/lib/firebase";
-import { signInWithPopup, signOut, onAuthStateChanged, User } from "firebase/auth";
+import { signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged, User, getRedirectResult } from "firebase/auth";
 
 interface AuthContextType {
     user: User | null;
@@ -25,6 +25,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // 1. Check for redirect result (crucial for mobile flow)
+        getRedirectResult(auth)
+            .then((result) => {
+                if (result) {
+                    console.log("Redirect sign-in successful:", result.user);
+                    // User state will be updated by onAuthStateChanged automatically
+                }
+            })
+            .catch((error) => {
+                console.error("Redirect sign-in error:", error);
+            });
+
+        // 2. Listen for auth state changes
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             setUser(user);
             setLoading(false);
@@ -34,10 +47,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }, []);
 
     const signInWithGoogle = async () => {
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
         try {
-            await signInWithPopup(auth, googleProvider);
-        } catch (error) {
+            if (isMobile) {
+                await signInWithRedirect(auth, googleProvider);
+            } else {
+                await signInWithPopup(auth, googleProvider);
+            }
+        } catch (error: any) {
             console.error("Error signing in with Google", error);
+
+            // Only fallback to redirect if it's NOT a user cancellation/close
+            // This prevents the "slow" feeling if a user just closes the popup
+            if (error.code !== 'auth/popup-closed-by-user' &&
+                error.code !== 'auth/cancelled-popup-request' &&
+                !isMobile) {
+                try {
+                    await signInWithRedirect(auth, googleProvider);
+                } catch (retryError) {
+                    console.error("Retry with redirect failed", retryError);
+                }
+            }
         }
     };
 

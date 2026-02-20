@@ -27,7 +27,7 @@ const REPORT_TASKS = [
 
 export default function ProfilePage() {
     const router = useRouter();
-    const { user, logout } = useAuth();
+    const { user, logout, signInWithGoogle } = useAuth();
     const [stats, setStats] = useState({
         todayProgress: 0,
         fastingStreak: 0,
@@ -36,6 +36,7 @@ export default function ProfilePage() {
     const [worshipHistory, setWorshipHistory] = useState<Record<string, number>>({});
     const [monthlyStats, setMonthlyStats] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(true);
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
 
     // Helper to format YYYY-MM-DD
     const formatDateKey = (date: Date) => {
@@ -144,7 +145,17 @@ export default function ProfilePage() {
 
     const handleLogout = async () => {
         await logout();
-        router.push("/login");
+        router.push("/");
+    };
+
+    const handleLogin = async () => {
+        setIsLoggingIn(true);
+        try {
+            await signInWithGoogle();
+        } catch (error) {
+            console.error("Login failed:", error);
+            setIsLoggingIn(false);
+        }
     };
 
     if (!user && !loading) {
@@ -153,7 +164,9 @@ export default function ProfilePage() {
             <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
                 <div className="text-center">
                     <p className="text-slate-500 mb-4">Please log in to view your profile.</p>
-                    <Button onClick={() => router.push("/login")}>Log In</Button>
+                    <Button onClick={handleLogin} disabled={isLoggingIn}>
+                        {isLoggingIn ? "Redirecting..." : "Log In with Google"}
+                    </Button>
                 </div>
             </div>
         );
