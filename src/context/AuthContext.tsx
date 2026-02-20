@@ -43,6 +43,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const logout = async () => {
         try {
+            // Clear all app-related local storage
+            localStorage.removeItem("worshipHistory");
+            localStorage.removeItem("fastingHistory");
+            localStorage.removeItem("fastingStatus");
+            // Clear daily tasks
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith("worshipTasks_")) {
+                    localStorage.removeItem(key);
+                }
+            });
+
             await signOut(auth);
         } catch (error) {
             console.error("Error signing out", error);
