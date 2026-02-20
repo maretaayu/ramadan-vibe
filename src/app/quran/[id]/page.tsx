@@ -7,12 +7,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, BookOpen, Volume2, Pause, Play } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
+import { useAuth } from "@/context/AuthContext";
+import { syncUserData, getUserData } from "@/lib/db";
 
 // Helper to get font class based on script type if needed, but standard Amiri is good.
 // Bismillah pre-check
 const BISMILLAH = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
 
 export default function SurahDetail() {
+    const { user } = useAuth();
     const params = useParams();
     const router = useRouter();
     const id = Number(params.id);
@@ -66,12 +69,23 @@ export default function SurahDetail() {
         if (saved) {
             setBookmark(JSON.parse(saved));
         }
+
+        // Sync from Firestore if logged in
+        if (user) {
+            getUserData(user.uid).then((data) => {
+                if (data && data.quranBookmark) {
+                    setBookmark(data.quranBookmark);
+                    localStorage.setItem("quranBookmark", JSON.stringify(data.quranBookmark));
+                }
+            });
+        }
+
         // Load memorized ayahs for this surah
         const savedMemorized = localStorage.getItem(`memorized-${id}`);
         if (savedMemorized) {
             setMemorized(JSON.parse(savedMemorized));
         }
-    }, [id]);
+    }, [id, user]);
 
     useEffect(() => {
         if (!id) return;
@@ -128,6 +142,10 @@ export default function SurahDetail() {
         };
         setBookmark(newBookmark);
         localStorage.setItem("quranBookmark", JSON.stringify(newBookmark));
+
+        if (user) {
+            syncUserData(user.uid, { quranBookmark: newBookmark });
+        }
     };
 
     const toggleMemorized = (ayahNumber: number) => {

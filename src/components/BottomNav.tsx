@@ -11,6 +11,7 @@ export default function BottomNav() {
         { label: "Home", icon: Home, href: "/" },
         { label: "Quran", icon: BookOpen, href: "/quran" },
         { label: "Qibla", icon: Compass, href: "/qibla" },
+        { label: "Profile", icon: User, href: "/profile" },
     ];
 
     return (

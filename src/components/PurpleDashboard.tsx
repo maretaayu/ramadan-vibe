@@ -15,6 +15,11 @@ export default function PurpleDashboard() {
     const [country, setCountry] = useState("Indonesia");
     const [coords, setCoords] = useState<{ lat: number; long: number } | null>(null);
 
+    // Fasting Streak
+    const [fastingStreak, setFastingStreak] = useState(0);
+    const [isFasting, setIsFasting] = useState(false);
+    const [fastingHistory, setFastingHistory] = useState<string[]>([]);
+
     const [nextPrayer, setNextPrayer] = useState<{ name: string; time: string } | null>(null);
     const [timeRemaining, setTimeRemaining] = useState<string>("");
 
@@ -34,6 +39,123 @@ export default function PurpleDashboard() {
             );
         }
     }, []);
+
+    useEffect(() => {
+        // Load Fasting History
+        const savedHistory = localStorage.getItem("fastingHistory");
+        const todayKey = new Date().toISOString().split('T')[0];
+
+        if (savedHistory) {
+            const history = JSON.parse(savedHistory);
+            setFastingHistory(history);
+            setIsFasting(history.includes(todayKey));
+
+            // Calculate Streak
+            let streak = 0;
+            // distinct dates, sorted desc
+            const dates = [...new Set(history)].sort().reverse() as string[];
+
+            // Check if today is present
+            if (dates.length > 0) {
+                const today = new Date();
+                // Check consecutive dates backward
+                let checkDate = new Date(today);
+
+                // If today is marked, start counting
+                // If not, maybe check yesterday? 
+                // Standard apps usually count streak if yesterday was done, and today is pending or done.
+                // Let's count actual marked days continuously from today or yesterday.
+
+                // Logic: 
+                // 1. If today is marked -> Streak starts from today backwards.
+                // 2. If today is NOT marked -> Streak is present IF yesterday was marked.
+
+                const todayStr = checkDate.toISOString().split('T')[0];
+                checkDate.setDate(checkDate.getDate() - 1);
+                const yesterdayStr = checkDate.toISOString().split('T')[0];
+
+                if (history.includes(todayStr)) {
+                    streak = 1;
+                    let current = new Date(today);
+                    while (true) {
+                        current.setDate(current.getDate() - 1);
+                        const dateStr = current.toISOString().split('T')[0];
+                        if (history.includes(dateStr)) {
+                            streak++;
+                        } else {
+                            break;
+                        }
+                    }
+                } else if (history.includes(yesterdayStr)) {
+                    // Start from yesterday
+                    streak = 0;
+                    let current = new Date(today); // Start from today
+                    while (true) {
+                        current.setDate(current.getDate() - 1); // First step goes to yesterday
+                        const dateStr = current.toISOString().split('T')[0];
+                        if (history.includes(dateStr)) {
+                            streak++;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+            setFastingStreak(streak);
+        }
+    }, []);
+
+    const handleFastingToggle = (checked: boolean) => {
+        const todayKey = new Date().toISOString().split('T')[0];
+        let newHistory = [...fastingHistory];
+
+        if (checked) {
+            if (!newHistory.includes(todayKey)) {
+                newHistory.push(todayKey);
+            }
+        } else {
+            newHistory = newHistory.filter(d => d !== todayKey);
+        }
+
+        setFastingHistory(newHistory);
+        setIsFasting(checked);
+        localStorage.setItem("fastingHistory", JSON.stringify(newHistory));
+        localStorage.setItem("fastingStatus", String(checked)); // Sync with legacy storage just in case
+
+        // Recalculate Streak immediately
+        let streak = 0;
+        if (checked) {
+            streak = 1;
+            let current = new Date();
+            while (true) {
+                current.setDate(current.getDate() - 1);
+                const dateStr = current.toISOString().split('T')[0];
+                if (newHistory.includes(dateStr)) {
+                    streak++;
+                } else {
+                    break;
+                }
+            }
+        } else {
+            // If unchecked today, check if yesterday exists
+            let current = new Date();
+            current.setDate(current.getDate() - 1); // Yesterday
+            const yesterdayStr = current.toISOString().split('T')[0];
+
+            if (newHistory.includes(yesterdayStr)) {
+                while (true) {
+                    const dateStr = current.toISOString().split('T')[0];
+                    if (newHistory.includes(dateStr)) {
+                        streak++;
+                        current.setDate(current.getDate() - 1);
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+        setFastingStreak(streak);
+    };
 
     useEffect(() => {
         async function fetchData() {
@@ -138,10 +260,25 @@ export default function PurpleDashboard() {
                                 {prayerData.date.hijri.day} {prayerData.date.hijri.month.en}
                             </span>
                         </div>
-                        <div className="flex flex-col items-end">
-                            <div className="flex items-center gap-1.5 text-xs font-medium bg-indigo-950/30 px-3 py-1.5 rounded-full backdrop-blur-md">
+                        <div className="flex items-center gap-2">
+                            {/* Streak Toggle */}
+                            <div
+                                onClick={() => handleFastingToggle(!isFasting)}
+                                className={`flex items-center gap-1.5 h-9 px-3 rounded-full backdrop-blur-md border transition-all cursor-pointer active:scale-95 group ${isFasting
+                                        ? "bg-gradient-to-r from-orange-500 to-amber-500 border-orange-400 text-white shadow-lg shadow-orange-900/20"
+                                        : "bg-white/10 border-white/10 text-violet-200 hover:bg-white/20 hover:border-white/20"
+                                    }`}
+                            >
+                                <span className={`text-[12px] transition-transform group-hover:scale-110 ${isFasting ? "animate-pulse" : "grayscale opacity-70"}`}>🔥</span>
+                                <span className="text-[11px] font-bold">
+                                    {isFasting ? `${fastingStreak}` : "Fast"}
+                                </span>
+                            </div>
+
+                            {/* Location Pill */}
+                            <div className="flex items-center gap-1.5 h-9 bg-indigo-950/30 px-3 rounded-full backdrop-blur-md border border-white/5 hover:bg-indigo-900/40 transition-colors">
                                 <MapPin className="w-3.5 h-3.5 text-amber-400" />
-                                <span>{city}</span>
+                                <span className="text-[11px] font-medium text-white">{city}</span>
                             </div>
                         </div>
                     </div>
@@ -196,7 +333,10 @@ export default function PurpleDashboard() {
                     <Button variant="ghost" className="rounded-full bg-white text-slate-500 shadow-sm hover:text-primary">Upcoming</Button>
                 </div>
 
-                <WorshipTracker />
+                <WorshipTracker
+                    externalFastingStatus={isFasting}
+                    onFastingChange={handleFastingToggle}
+                />
             </div>
         </div>
     );

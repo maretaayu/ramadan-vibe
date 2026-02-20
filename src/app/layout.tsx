@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Amiri } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/context/AuthContext";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const amiri = Amiri({
@@ -22,7 +23,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="light">
       <body className={`${inter.variable} ${amiri.variable} font-sans antialiased bg-slate-50 text-slate-900`}>
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );
