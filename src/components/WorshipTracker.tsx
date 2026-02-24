@@ -167,6 +167,9 @@ export default function WorshipTracker({ fastingHistory = [], onFastingChange }:
                 worshipHistory: history
             });
         }
+
+        // Notify Dashboard to refresh heatmap
+        window.dispatchEvent(new Event('worshipProgressUpdated'));
     }, [tasks, selectedDate, user, mounted]);
 
     const handleDateChange = (days: number) => {

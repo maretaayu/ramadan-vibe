@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getPrayerTimes } from "@/lib/api";
 import { PrayerData } from "@/types";
-import { Loader2, MapPin, Bell, Cloud, Moon, Sun, Sunset, BookOpen, Crown, MoreHorizontal, MessageSquare, ChevronRight, Share2, Copy, Compass, ChevronDown, Search } from "lucide-react";
+import { Loader2, MapPin, Bell, Cloud, Moon, Sun, Sunset, BookOpen, Crown, MoreHorizontal, MessageSquare, ChevronRight, Share2, Copy, Compass, ChevronDown, Search, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "./ui/button";
 import WorshipTracker from "./WorshipTracker";
@@ -12,7 +12,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { CheckCircle2 } from "lucide-react";
 import { useLastRead } from "@/hooks/useLastRead";
 import { useAuth } from "@/context/AuthContext";
-import { saveUser, getUserData, syncUserData } from "@/lib/db";
+import { saveUser, getUserData, syncUserData, getAllDailyLogs, saveDailyLog } from "@/lib/db";
 import { LogOut, User as UserIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -53,11 +53,27 @@ export default function MuslimProDashboard() {
     const { bookmark, mounted } = useLastRead();
     const [prayerData, setPrayerData] = useState<PrayerData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [city, setCity] = useState("Yogyakarta");
+    const [city, setCity] = useState("Yogyakarta & Jateng (WIB)");
+    const [isMounted, setIsMounted] = useState(false);
     const [country, setCountry] = useState("Indonesia");
     const [coords, setCoords] = useState<{ lat: number; long: number } | null>({ lat: -7.7956, long: 110.3695 });
     const [searchQuery, setSearchQuery] = useState("");
     const [isLocationSheetOpen, setIsLocationSheetOpen] = useState(false);
+
+    // Load saved location on mount
+    useEffect(() => {
+        setIsMounted(true);
+        const savedCity = localStorage.getItem("selectedCity");
+        const savedCoords = localStorage.getItem("selectedCoords");
+        if (savedCity && savedCoords) {
+            try {
+                setCity(savedCity);
+                setCoords(JSON.parse(savedCoords));
+            } catch (e) {
+                // Ignore parse error
+            }
+        }
+    }, []);
 
     // Helper to format YYYY-MM-DD
     const formatDateKey = (date: Date) => {
@@ -94,6 +110,32 @@ export default function MuslimProDashboard() {
                 setWorshipHistory({});
             }
 
+            // Robust History Build: Scan localStorage for ANY worshipTasks_* keys
+            // This ensures heatmap is correct even if worshipHistory object is out-of-sync
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith("worshipTasks_")) {
+                    const dKey = key.replace("worshipTasks_", "");
+                    try {
+                        const tasks = JSON.parse(localStorage.getItem(key) || "[]");
+                        if (Array.isArray(tasks) && tasks.length > 0) {
+                            const completed = tasks.filter((t: any) => t.completed).length;
+                            const calcProgress = Math.round((completed / tasks.length) * 100);
+                            // Only update if it's missing or lower (so we don't downgrade history accidentally, though tasks is source of truth)
+                            if (history[dKey] === undefined || history[dKey] !== calcProgress) {
+                                history[dKey] = calcProgress;
+                            }
+                        }
+                    } catch (e) {
+                        // Ignore parse errors
+                    }
+                }
+            }
+
+            // Save the reinforced history
+            localStorage.setItem("worshipHistory", JSON.stringify(history));
+            setWorshipHistory(history);
+
             // Calculate Today's Progress
             // Priority 1: Check history for today
             if (history[dateKey] !== undefined) {
@@ -121,9 +163,12 @@ export default function MuslimProDashboard() {
         };
 
         calculateProgress();
-        // Poll for changes in case Sheet updates localStorage
-        const interval = setInterval(calculateProgress, 1000);
-        return () => clearInterval(interval);
+
+        // Listen for custom event from WorshipTracker instead of polling
+        const handleWorshipUpdate = () => calculateProgress();
+        window.addEventListener('worshipProgressUpdated', handleWorshipUpdate);
+
+        return () => window.removeEventListener('worshipProgressUpdated', handleWorshipUpdate);
     }, []);
 
     useEffect(() => {
@@ -191,52 +236,157 @@ export default function MuslimProDashboard() {
                     photoURL: user.photoURL
                 });
 
-                // 2. Check if we have local data to push (first time login)
-                const localWorship = localStorage.getItem("worshipHistory");
-                const localFasting = localStorage.getItem("fastingHistory");
+                // 2 & 3. Fetch latest data from DB and Merge with Local
+                const userData = await getUserData(user.uid);
+                const allDailyLogs = await getAllDailyLogs(user.uid);
 
-                if (localWorship || localFasting) {
-                    await syncUserData(user.uid, {
-                        worshipHistory: localWorship ? JSON.parse(localWorship) : {},
-                        fastingHistory: localFasting ? JSON.parse(localFasting) : []
+                let mergedWorshipHistory: Record<string, number> = {};
+                if (userData && userData.worshipHistory) {
+                    mergedWorshipHistory = { ...userData.worshipHistory };
+                }
+
+                let mergedFastingHistory: string[] = [];
+                if (userData && userData.fastingHistory) {
+                    mergedFastingHistory = [...userData.fastingHistory];
+                }
+
+                let hasLocalChanges = false;
+
+                // RECONSTRUCT MISSING SUMMARIES (From past bugs where worshipHistory wasn't saved to user doc)
+                // This guarantees that past dates are always included in the heatmap.
+                if (allDailyLogs && allDailyLogs.length > 0) {
+                    allDailyLogs.forEach(log => {
+                        const dKey = log.id;
+                        // Use highest progress
+                        if (log.progress !== undefined) {
+                            if (mergedWorshipHistory[dKey] === undefined || log.progress > mergedWorshipHistory[dKey]) {
+                                mergedWorshipHistory[dKey] = log.progress;
+                                hasLocalChanges = true;
+                            }
+                        }
+                        // Guarantee local storage has the granular tasks
+                        if (log.tasks) {
+                            const storageKey = `worshipTasks_${dKey}`;
+                            // Don't overwrite if local has MORE completed tasks than remote (local is always right immediately after clicking, until merged)
+                            // Actually here we just set it if it doesn't exist to allow offline viewing
+                            if (!localStorage.getItem(storageKey)) {
+                                localStorage.setItem(storageKey, JSON.stringify(log.tasks));
+                            }
+                        }
                     });
                 }
 
-                // 3. Fetch latest data from DB to update UI
-                const userData = await getUserData(user.uid);
-                if (userData) {
-                    if (userData.worshipHistory) setWorshipHistory(userData.worshipHistory);
-                    if (userData.fastingHistory) {
-                        setFastingHistory(userData.fastingHistory);
-                        const todayKey = formatDateKey(new Date());
-                        setIsFasting(userData.fastingHistory.includes(todayKey));
+                // Get local data
+                const localWorshipStr = localStorage.getItem("worshipHistory");
+                const localFastingStr = localStorage.getItem("fastingHistory");
 
-                        // Recalculate Streak
-                        let streak = 0;
-                        const history = userData.fastingHistory;
-                        if (history.includes(todayKey)) {
-                            streak = 1;
-                            let current = new Date();
-                            while (true) {
-                                current.setDate(current.getDate() - 1);
-                                const dateStr = formatDateKey(current);
-                                if (history.includes(dateStr)) streak++; else break;
-                            }
-                        } else {
-                            // Check yesterday (simplified)
-                            const yesterday = new Date();
-                            yesterday.setDate(yesterday.getDate() - 1);
-                            const yesterdayStr = formatDateKey(yesterday);
-                            if (history.includes(yesterdayStr)) {
-                                streak = 0;
-                                let current = new Date(); // Start logic needs refinement normally, but keeping it consistent with existing
-                                // Actually let's just rely on the fact that if yesterday is there, it's at least valid to have a streak count if we supported it fully.
-                                // But for now sticking to the existing logic pattern.
-                            }
+                if (localWorshipStr) {
+                    const localWorship = JSON.parse(localWorshipStr);
+                    // Merge local worship into DB worship (local overrides DB for the same date if logged locally before sync)
+                    Object.keys(localWorship).forEach(date => {
+                        if (!mergedWorshipHistory[date] || localWorship[date] > mergedWorshipHistory[date]) {
+                            mergedWorshipHistory[date] = localWorship[date];
+                            hasLocalChanges = true;
                         }
-                        setFastingStreak(streak);
+                    });
+                }
+
+                if (localFastingStr) {
+                    const localFasting = JSON.parse(localFastingStr);
+                    // Merge local fasting dates
+                    localFasting.forEach((date: string) => {
+                        if (!mergedFastingHistory.includes(date)) {
+                            mergedFastingHistory.push(date);
+                            hasLocalChanges = true;
+                        }
+                    });
+                }
+
+                // Push orphaned granular tasks to DB
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith("worshipTasks_")) {
+                        const dKey = key.replace("worshipTasks_", "");
+                        try {
+                            const tasksStr = localStorage.getItem(key);
+                            if (tasksStr) {
+                                const tasks = JSON.parse(tasksStr);
+                                const completed = tasks.filter((t: any) => t.completed).length;
+                                const progress = Math.round((completed / tasks.length) * 100);
+
+                                // Push to DB if local progress is strictly greater (meaning they did something offline)
+                                // Or if it doesn't exist in DB at all
+                                const remoteLog = allDailyLogs.find(l => l.id === dKey);
+                                const shouldPush = !remoteLog || (remoteLog.progress === undefined) || (progress > remoteLog.progress);
+
+                                if (shouldPush && progress > 0) {
+                                    await saveDailyLog(user.uid, dKey, {
+                                        tasks: tasks,
+                                        progress: progress,
+                                        updatedAt: new Date().toISOString()
+                                    });
+                                    mergedWorshipHistory[dKey] = progress;
+                                    hasLocalChanges = true;
+                                }
+                            }
+                        } catch (e) {
+                            // ignore parse err
+                        }
                     }
                 }
+
+                // Recalculate Streak using unified logic
+                const todayKey = formatDateKey(new Date());
+                let streak = 0;
+                if (mergedFastingHistory.includes(todayKey)) {
+                    streak = 1;
+                    let current = new Date();
+                    while (true) {
+                        current.setDate(current.getDate() - 1);
+                        const dateStr = formatDateKey(current);
+                        if (mergedFastingHistory.includes(dateStr)) streak++; else break;
+                    }
+                } else {
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    const yesterdayStr = formatDateKey(yesterday);
+                    if (mergedFastingHistory.includes(yesterdayStr)) {
+                        streak = 0;
+                        let current = new Date();
+                        while (true) {
+                            current.setDate(current.getDate() - 1);
+                            const dateStr = formatDateKey(current);
+                            if (mergedFastingHistory.includes(dateStr)) streak++; else break;
+                        }
+                    }
+                }
+                setFastingStreak(streak);
+
+                // If we merged and found local data that wasn't in DB, push the update
+                // Or if streak doesn't match db
+                if (hasLocalChanges || (userData && userData.fastingStreak !== streak)) {
+                    await syncUserData(user.uid, {
+                        worshipHistory: mergedWorshipHistory,
+                        fastingHistory: mergedFastingHistory,
+                        fastingStreak: streak
+                    });
+                }
+
+                // 4. Update UI and LocalStorage with the fully merged state
+                setWorshipHistory(mergedWorshipHistory);
+                localStorage.setItem("worshipHistory", JSON.stringify(mergedWorshipHistory));
+
+                // Explicitly set today's progress to update the Daily Tracker UI immediately
+                if (mergedWorshipHistory[todayKey] !== undefined) {
+                    setWorshipProgress(mergedWorshipHistory[todayKey]);
+                } else {
+                    setWorshipProgress(0); // Reset or let calculateProgress handle it later
+                }
+
+                setFastingHistory(mergedFastingHistory);
+                localStorage.setItem("fastingHistory", JSON.stringify(mergedFastingHistory));
+
+                setIsFasting(mergedFastingHistory.includes(todayKey));
             } else {
                 // User logged out: Reset to local data (which is cleared on logout)
                 setWorshipHistory({});
@@ -272,12 +422,6 @@ export default function MuslimProDashboard() {
 
         localStorage.setItem("fastingHistory", JSON.stringify(newHistory));
 
-        // Sync with DB if logged in
-        if (user) {
-            syncUserData(user.uid, { fastingHistory: newHistory });
-        }
-
-        // Recalculate Streak immediately
         let streak = 0;
         // Sort history to ensure correct streak calc
         const sortedHistory = [...newHistory].sort().reverse(); // Descending dates
@@ -322,6 +466,11 @@ export default function MuslimProDashboard() {
             }
         }
         setFastingStreak(streak);
+
+        // Sync with DB if logged in
+        if (user) {
+            syncUserData(user.uid, { fastingHistory: newHistory, fastingStreak: streak });
+        }
     };
 
     /*
@@ -431,7 +580,7 @@ export default function MuslimProDashboard() {
         { name: "Dua", icon: MessageSquare, href: "/dua" },
         { name: "Tasbih", icon: MoreHorizontal, href: "/tasbih" },
         { name: "Qibla", icon: Compass, href: "/qibla" },
-        { name: "Hadith", icon: BookOpen, href: "/hadith" },
+        { name: "Recap", icon: Sparkles, href: "/recap" },
     ];
 
     return (
@@ -457,17 +606,19 @@ export default function MuslimProDashboard() {
                     {/* Top Bar: Date & Location & User */}
                     <div className="flex justify-between items-start mb-12">
                         {/* Left: Date & Location */}
-                        <div className="flex flex-col gap-1">
-                            <p className="text-xs font-bold text-violet-200/80 uppercase tracking-widest">
+                        <div className="flex flex-col gap-1 min-w-0 flex-1 pr-4">
+                            <p className="text-[10px] sm:text-xs font-bold text-violet-200/80 uppercase tracking-widest truncate">
                                 {prayerData.date.hijri.day} {prayerData.date.hijri.month.en} {prayerData.date.hijri.year}
                             </p>
 
                             <Sheet open={isLocationSheetOpen} onOpenChange={setIsLocationSheetOpen}>
                                 <SheetTrigger asChild>
-                                    <div className="flex items-center gap-2 cursor-pointer group origin-left transition-transform hover:scale-105">
-                                        <MapPin className="w-4 h-4 text-amber-400 drop-shadow-md" />
-                                        <span className="text-lg font-bold text-white group-hover:text-amber-100 transition-colors">{city}</span>
-                                        <ChevronDown className="w-3 h-3 text-white/50" />
+                                    <div className="flex items-center gap-2 cursor-pointer group origin-left transition-transform hover:scale-105 w-full">
+                                        <MapPin className="w-4 h-4 text-amber-400 drop-shadow-md shrink-0" />
+                                        <span className="text-base sm:text-lg font-bold text-white group-hover:text-amber-100 transition-colors truncate">
+                                            {isMounted ? city : "Yogyakarta & Jateng (WIB)"}
+                                        </span>
+                                        <ChevronDown className="w-3 h-3 text-white/50 shrink-0" />
                                     </div>
                                 </SheetTrigger>
                                 <SheetContent side="bottom" className="rounded-t-[30px] h-[70vh] p-0 bg-background border-t border-border focus:outline-none">
@@ -494,6 +645,8 @@ export default function MuslimProDashboard() {
                                                 onClick={() => {
                                                     setCity(c.name);
                                                     setCoords({ lat: c.lat, long: c.long });
+                                                    localStorage.setItem("selectedCity", c.name);
+                                                    localStorage.setItem("selectedCoords", JSON.stringify({ lat: c.lat, long: c.long }));
                                                     setIsLocationSheetOpen(false);
                                                 }}
                                             >
@@ -517,7 +670,7 @@ export default function MuslimProDashboard() {
                         </div>
 
                         {/* Right: Profile & Streak Capsule */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 shrink-0">
                             {user ? (
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
@@ -767,14 +920,14 @@ export default function MuslimProDashboard() {
 
                                     const value = isToday ? worshipProgress : (worshipHistory[dateKey] || 0);
 
-                                    let colorClass = "bg-slate-100";
+                                    let colorClass = "bg-slate-200";
                                     if (value > 0) colorClass = "bg-violet-200";
                                     if (value >= 40) colorClass = "bg-violet-400";
-                                    if (value >= 70) colorClass = "bg-violet-600";
-                                    if (value === 100) colorClass = "bg-violet-800";
+                                    if (value >= 70) colorClass = "bg-violet-600 shadow-sm";
+                                    if (value === 100) colorClass = "bg-violet-800 shadow-md ring-1 ring-violet-900/20";
 
                                     // Visual distinction for future dates
-                                    if (isFuture) colorClass = "bg-slate-50 opacity-50";
+                                    if (isFuture) colorClass = "bg-slate-50 border border-slate-100 opacity-60";
 
                                     // Visual distinction for Today
                                     const borderClass = isToday ? "ring-2 ring-violet-400 ring-offset-1" : "";
@@ -802,7 +955,7 @@ export default function MuslimProDashboard() {
                             <div className="flex items-center justify-end gap-2 text-[10px] text-slate-400 w-full px-4">
                                 <span>Less</span>
                                 <div className="flex gap-1">
-                                    <div className="w-3 h-3 rounded-sm bg-slate-100"></div>
+                                    <div className="w-3 h-3 rounded-sm bg-slate-200"></div>
                                     <div className="w-3 h-3 rounded-sm bg-violet-200"></div>
                                     <div className="w-3 h-3 rounded-sm bg-violet-400"></div>
                                     <div className="w-3 h-3 rounded-sm bg-violet-600"></div>

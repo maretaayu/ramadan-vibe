@@ -204,7 +204,7 @@ export default function SurahDetail() {
                 {/* Bismillah (except for At-Tawbah) */}
                 {id !== 9 && (
                     <div className="text-center mb-8 p-6 bg-card/50 rounded-xl border border-border">
-                        <span className="font-amiri text-2xl text-primary leading-loose">
+                        <span className="font-amiri text-3xl text-primary leading-loose drop-shadow-sm">
                             {BISMILLAH}
                         </span>
                     </div>
@@ -275,7 +275,7 @@ export default function SurahDetail() {
                                         <div className="text-right group cursor-pointer" dir="rtl" onClick={() => isMemorizationMode && document.getElementById(`text-${ayah.number}`)?.classList.toggle("blur-md")}>
                                             <p
                                                 id={`text-${ayah.number}`}
-                                                className={`font-amiri text-2xl leading-[2.5] text-foreground transition-all duration-300 ${isMemorizationMode && !isMemorized ? "blur-md select-none" : ""}`}
+                                                className={`font-amiri text-3xl leading-[2.5] text-foreground transition-all duration-300 drop-shadow-sm ${isMemorizationMode && !isMemorized ? "blur-md select-none" : ""}`}
                                             >
                                                 {ayah.text}
                                             </p>

@@ -28,7 +28,7 @@ export const saveUser = async (user: UserProfile) => {
 
 export const syncUserData = async (uid: string, data: any) => {
     const userRef = doc(db, "users", uid);
-    await updateDoc(userRef, data, { merge: true });
+    await setDoc(userRef, data, { merge: true });
 };
 
 export const getUserData = async (uid: string) => {
@@ -81,6 +81,18 @@ export const getMonthlyLogs = async (uid: string, month: number, year: number) =
         if (doc.id.startsWith(prefix)) {
             logs.push({ id: doc.id, ...doc.data() });
         }
+    });
+    return logs;
+};
+
+export const getAllDailyLogs = async (uid: string) => {
+    const logsRef = collection(db, "users", uid, "dailyLogs");
+    const q = query(logsRef);
+    const querySnapshot = await getDocs(q);
+    const logs: any[] = [];
+
+    querySnapshot.forEach((doc) => {
+        logs.push({ id: doc.id, ...doc.data() });
     });
     return logs;
 };

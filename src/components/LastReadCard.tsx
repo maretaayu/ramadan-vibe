@@ -13,26 +13,27 @@ export default function LastReadCard() {
     if (!bookmark) {
         return (
             <Link href="/quran/1">
-                <Card className="bg-white dark:bg-slate-900 border-violet-100 dark:border-violet-900/20 hover:border-violet-300 dark:hover:border-violet-700 transition-all cursor-pointer mb-6 group shadow-sm">
-                    <CardContent className="flex items-center justify-between p-4">
+                <Card className="relative overflow-hidden bg-gradient-to-r from-violet-600 to-indigo-600 text-white border-0 shadow-md hover:shadow-lg transition-all cursor-pointer mb-6 group rounded-xl transform hover:-translate-y-0.5">
+                    <div className="absolute top-[-50%] right-[-10%] w-[80%] h-[150%] bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-colors pointer-events-none"></div>
+                    <CardContent className="flex items-center justify-between p-4 relative z-10">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-violet-100 dark:bg-violet-900/30 rounded-full text-violet-600 dark:text-violet-400 group-hover:bg-violet-600 group-hover:text-white transition-colors">
+                            <div className="p-2 bg-white/20 backdrop-blur-sm rounded-xl text-white group-hover:bg-white/30 transition-all shadow-inner">
                                 <BookOpen className="w-5 h-5" />
                             </div>
                             <div>
-                                <p className="text-xs text-violet-600 dark:text-violet-400 font-bold uppercase tracking-wider">
+                                <p className="text-[10px] text-violet-200 font-bold uppercase tracking-wider mb-0.5">
                                     Start Reading
                                 </p>
-                                <h3 className="font-bold text-slate-800 dark:text-slate-100 text-lg">
+                                <h3 className="font-serif font-bold text-lg drop-shadow-sm leading-tight">
                                     Al-Fatiha
                                 </h3>
-                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                <p className="text-xs text-violet-100/80 font-medium">
                                     The Opening
                                 </p>
                             </div>
                         </div>
-                        <div className="text-violet-300 dark:text-violet-600 group-hover:translate-x-1 transition-transform">
-                            →
+                        <div className="flex items-center justify-center group-hover:translate-x-1 transition-transform">
+                            <span className="text-white/80 font-bold text-xl">→</span>
                         </div>
                     </CardContent>
                 </Card>
@@ -42,26 +43,27 @@ export default function LastReadCard() {
 
     return (
         <Link href={`/quran/${bookmark.surahId}`}>
-            <Card className="bg-white dark:bg-slate-900/50 border-violet-100 dark:border-white/5 hover:border-violet-300 dark:hover:border-violet-500/30 transition-all cursor-pointer mb-6 group shadow-sm">
-                <CardContent className="flex items-center justify-between p-4">
+            <Card className="relative overflow-hidden bg-gradient-to-r from-violet-600 to-indigo-600 text-white border-0 shadow-md hover:shadow-lg transition-all cursor-pointer mb-6 group rounded-xl transform hover:-translate-y-0.5">
+                <div className="absolute top-[-50%] right-[-10%] w-[80%] h-[150%] bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-colors pointer-events-none"></div>
+                <CardContent className="flex items-center justify-between p-4 relative z-10">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-violet-100 dark:bg-violet-500/10 rounded-full text-violet-600 dark:text-violet-300 group-hover:bg-violet-600 group-hover:text-white transition-colors">
+                        <div className="p-2 bg-white/20 backdrop-blur-sm rounded-xl text-white group-hover:bg-white/30 transition-all shadow-inner">
                             <BookOpen className="w-5 h-5" />
                         </div>
                         <div>
-                            <p className="text-xs text-violet-600 dark:text-violet-300 font-bold uppercase tracking-wider">
+                            <p className="text-[10px] text-violet-200 font-bold uppercase tracking-wider mb-0.5">
                                 Continue Reading
                             </p>
-                            <h3 className="font-bold text-slate-800 dark:text-slate-100 text-lg">
+                            <h3 className="font-serif font-bold text-lg drop-shadow-sm leading-tight">
                                 {bookmark.surahName}
                             </h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                            <p className="text-xs text-violet-100/80 font-medium">
                                 Ayah {bookmark.ayahNumber}
                             </p>
                         </div>
                     </div>
-                    <div className="text-violet-300 dark:text-violet-600 group-hover:translate-x-1 transition-transform">
-                        →
+                    <div className="flex items-center justify-center group-hover:translate-x-1 transition-transform">
+                        <span className="text-white/80 font-bold text-xl">→</span>
                     </div>
                 </CardContent>
             </Card>
